@@ -1,6 +1,6 @@
 CC=g++
 CFLAGS=-std=c++11 -Wall -pedantic -O2
-LIBS=-lm
+LIBS=-lm lib/berlekamp.c lib/crcgen.c lib/galois.c lib/rs.c
 
 all: bms2A bms2B
 
