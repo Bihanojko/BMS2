@@ -8,11 +8,10 @@
  * File:    bms2B.cpp
  */
 
-// #include <cstdlib>
-// #include <math.h>
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include <vector>
 
 #include "lib/ecc.h"
 
@@ -28,65 +27,13 @@ std::ofstream CreateOutputFile(std::string filename)
 
 
 // determine file length
-int GetFileLength(std::ifstream& inputFile)
+unsigned GetFileLength(std::ifstream& inputFile)
 {
     inputFile.seekg(0, inputFile.end);
-    int length = inputFile.tellg();
+    unsigned length = inputFile.tellg();
     inputFile.seekg(0, inputFile.beg);
 
     return length;
-}
-
-
-// TODO
-void deInterleave()
-{
-    std::vector<unsigned char> deInterleaved;
-	deInterleaved.resize(inputFileLength);
-
-	size_t blocks = std::ceil(size/(double)blockSize);
-	size_t lastBlockSize = size % blockSize;
-	size_t dataLength = dataSize;
-	for(int j=0; j< blocks; j++) {
-		if(j == blocks - 1) {
-			dataLength = lastBlockSize - paritySize;
-		}
-		for(int i=0; i<dataLength + paritySize; ++i)
-		{
-			int map = j + i * blocks;
-			if(i > lastBlockSize)
-				map -= i - lastBlockSize;
-			deInterleaved[i + j * blockSize] = input[map];
-		}
-	}
-}
-
-
-// TODO
-void decodeInput(std::ofstream& outputFile)
-{
-	deInterleave();
-	size_t decoded = 0;
-	size_t blockLength = blockSize;
-	size_t writeSize = dataSize;
-
-	while(decoded < size)
-	{
-		// If it is last block, adjust size
-		if (blockLength + decoded >= size)
-		{
-			blockLength = size - decoded;
-			writeSize = blockLength - paritySize;
-		}
-		// Decode date
-		decode_data(deInterleaved.data() + decoded, blockLength);
-		// Corrector errors
-		if (check_syndrome() != 0)
-			correct_errors_erasures(deInterleaved.data() + decoded, blockLength, 0, nullptr);
-
-		outputFile.write(reinterpret_cast<char*>(deInterleaved.data() + decoded), writeSize);
-		decoded += blockLength;
-	}
 }
 
 
@@ -113,7 +60,7 @@ int main(int argc, char** argv)
     }
 
     // determine input file length
-    int inputFileLength = GetFileLength(inputFile);
+    unsigned inputFileLength = GetFileLength(inputFile);
 
     // allocate memory
     unsigned char* buffer = new unsigned char [inputFileLength];
@@ -127,8 +74,64 @@ int main(int argc, char** argv)
     // initialize error checking and correcting
 	initialize_ecc();
 
-    // TODO
-	decodeInput(outputFile);
+	// TODO vvvvvv
+	const size_t paritySize = NPAR;
+	// 255 is limit of library
+	const size_t dataSize = 255 - paritySize;
+	//const size_t dataSize = 145;
+	const size_t blockSize = dataSize + paritySize;
+
+	unsigned char *input = nullptr;
+
+	// deinterleave
+	std::vector<unsigned char> deInterleaved;
+	deInterleaved.resize(inputFileLength);
+
+	size_t blocks = std::ceil(inputFileLength / (double) blockSize);
+	size_t lastBlockSize = inputFileLength % blockSize;
+	size_t dataLength = dataSize;
+
+	for (unsigned j = 0; j < blocks; ++j)
+	{
+		if (j == blocks - 1)
+			dataLength = lastBlockSize - paritySize;
+	
+		for (unsigned i = 0; i < dataLength + paritySize; ++i)
+		{
+			int map = j + i * blocks;
+
+			if (i > lastBlockSize)
+				map -= i - lastBlockSize;
+
+			deInterleaved[i + j * blockSize] = input[map];
+		}
+	}
+
+	// decode input
+	size_t decoded = 0;
+	size_t blockLength = blockSize;
+	size_t writeSize = dataSize;
+
+	while (decoded < inputFileLength)
+	{
+		// If it is last block, adjust size
+		if (blockLength + decoded >= inputFileLength)
+		{
+			blockLength = inputFileLength - decoded;
+			writeSize = blockLength - paritySize;
+		}
+
+		// Decode date
+		decode_data(deInterleaved.data() + decoded, blockLength);
+		
+		// Corrector errors
+		if (check_syndrome() != 0)
+			correct_errors_erasures(deInterleaved.data() + decoded, blockLength, 0, nullptr);
+
+		outputFile.write(reinterpret_cast<char*> (deInterleaved.data() + decoded), writeSize);
+		decoded += blockLength;
+	}
+	// TODO ^^^^^^
 
     outputFile.close();
     inputFile.close();
