@@ -27,10 +27,10 @@ std::ofstream CreateOutputFile(std::string filename)
 
 
 // determine file length
-unsigned GetFileLength(std::ifstream& inputFile)
+size_t GetFileLength(std::ifstream& inputFile)
 {
     inputFile.seekg(0, inputFile.end);
-    unsigned length = inputFile.tellg();
+    size_t length = inputFile.tellg();
     inputFile.seekg(0, inputFile.beg);
 
     return length;
@@ -52,15 +52,24 @@ int main(int argc, char** argv)
     std::ifstream inputFile;
     inputFile.open(filename, std::ifstream::binary);
 
-    // check if input file was opened successfully
-    if (!inputFile.is_open())
+    // create and open output file
+    std::ofstream outputFile = CreateOutputFile(filename);
+
+    // check if both files were opened successfully
+    if (!inputFile.is_open() || !outputFile.is_open())
     {
-        std::cerr <<  "Unable to open input file: " << filename << std::endl;
+        std::cerr <<  "Unable to open input or output file!" << std::endl;
+
+        if (inputFile.is_open())
+            inputFile.close();
+        if (outputFile.is_open())
+            outputFile.close();
+
         return EXIT_FAILURE;
     }
 
     // determine input file length
-    unsigned inputFileLength = GetFileLength(inputFile);
+    size_t inputFileLength = GetFileLength(inputFile);
 
     // allocate memory
     unsigned char* buffer = new unsigned char [inputFileLength];
@@ -122,9 +131,6 @@ int main(int argc, char** argv)
 		//encoded.insert(encoded.end(), output, output + dataLength + paritySize);
 	}
     // TODO ^^^^^^^
-
-    // create and open output file
-    std::ofstream outputFile = CreateOutputFile(filename);
 
 	// TODO 
     outputFile.write((const char *) &encoded.front(), encoded.size());
