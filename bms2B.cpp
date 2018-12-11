@@ -13,7 +13,9 @@
 #include <cmath>
 #include <vector>
 
-#include "lib/ecc.h"
+#include "rscode-1.3/ecc.h"
+
+unsigned int BLOCK_LENGTH = 255;
 
 
 // create and open output file
@@ -34,6 +36,34 @@ size_t GetFileLength(std::ifstream& inputFile)
     inputFile.seekg(0, inputFile.beg);
 
     return length;
+}
+
+
+// TODO
+void DeinterleaveInput(unsigned char* buffer, std::vector<unsigned char>& deinterleavedInput, size_t inputFileLength)
+{
+	size_t blocks = std::ceil(inputFileLength / (float) BLOCK_LENGTH);
+	size_t lastBlockSize = inputFileLength % BLOCK_LENGTH;
+	size_t dataLength = BLOCK_LENGTH - NPAR;
+
+	// deinterleavedInput.resize(inputFileLength);
+
+	for (unsigned int i = 0; i < blocks; ++i)
+	{
+		if (i == blocks - 1)
+			dataLength = lastBlockSize - NPAR;
+	
+		for (unsigned int j = 0; j < BLOCK_LENGTH; ++j)
+		{
+			int map = i + j * blocks;
+
+			if (j > lastBlockSize)
+				map -= j - lastBlockSize;
+
+			deinterleavedInput.append();
+			// deinterleavedInput[j + i * BLOCK_LENGTH] = buffer[map];
+		}
+	}
 }
 
 
@@ -80,60 +110,28 @@ int main(int argc, char** argv)
     // initialize error checking and correcting
 	initialize_ecc();
 
+	// to store the input sequence after deinterleaving
+	std::vector<unsigned char> deinterleavedInput;
+
+	// deinterleave the input sequence returning result in deinterleavedInput variable
+	DeinterleaveInput(buffer, deinterleavedInput, inputFileLength);
+
 	// TODO vvvvvv
-	const size_t paritySize = NPAR;
-	// 255 is limit of library
-	const size_t dataSize = 255 - paritySize;
-	//const size_t dataSize = 145;
-	const size_t blockSize = dataSize + paritySize;
-
-	// deinterleave
-	std::vector<unsigned char> deInterleaved;
-	deInterleaved.resize(inputFileLength);
-
-	size_t blocks = std::ceil(inputFileLength / (double) blockSize);
-	size_t lastBlockSize = inputFileLength % blockSize;
-	size_t dataLength = dataSize;
-
-	for (unsigned j = 0; j < blocks; ++j)
-	{
-		if (j == blocks - 1)
-			dataLength = lastBlockSize - paritySize;
-	
-		for (unsigned i = 0; i < dataLength + paritySize; ++i)
-		{
-			int map = j + i * blocks;
-
-			if (i > lastBlockSize)
-				map -= i - lastBlockSize;
-
-			deInterleaved[i + j * blockSize] = buffer[map];
-		}
-	}
-
 	// decode input
-	size_t decoded = 0;
-	size_t blockLength = blockSize;
-	size_t writeSize = dataSize;
-
-	while (decoded < inputFileLength)
+	for (size_t decoded = 0; decoded < inputFileLength; decoded += BLOCK_LENGTH)
 	{
 		// If it is last block, adjust size
-		if (blockLength + decoded >= inputFileLength)
-		{
-			blockLength = inputFileLength - decoded;
-			writeSize = blockLength - paritySize;
-		}
+		if (BLOCK_LENGTH + decoded >= inputFileLength)
+			BLOCK_LENGTH = inputFileLength - decoded;
 
 		// Decode date
-		decode_data(deInterleaved.data() + decoded, blockLength);
+		decode_data(deinterleavedInput.data() + decoded, BLOCK_LENGTH);
 		
 		// Corrector errors
 		if (check_syndrome() != 0)
-			correct_errors_erasures(deInterleaved.data() + decoded, blockLength, 0, nullptr);
+			correct_errors_erasures(deinterleavedInput.data() + decoded, BLOCK_LENGTH, 0, nullptr);
 
-		outputFile.write((char*) (deInterleaved.data() + decoded), writeSize);
-		decoded += blockLength;
+		outputFile.write((char*) (deinterleavedInput.data() + decoded), BLOCK_LENGTH - NPAR);
 	}
 	// TODO ^^^^^^
 

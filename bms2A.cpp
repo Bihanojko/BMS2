@@ -13,7 +13,7 @@
 #include <cmath>
 #include <vector>
 
-#include "lib/ecc.h"
+#include "rscode-1.3/ecc.h"
 
 
 // create and open output file
@@ -81,31 +81,25 @@ int main(int argc, char** argv)
     initialize_ecc();
 
     // TODO vvvvvvv
-    const size_t paritySize = NPAR;
-    // 255 is limit of library
-    const size_t dataSize = 255 - paritySize;
-    //const size_t dataSize = 145;
-    const size_t blockSize = dataSize + paritySize;
-
-    unsigned char output[256];
-    std::vector<unsigned char> encoded;
-
-    // encode input
-	unsigned mapIndex;
-	size_t encodedLength = 0;
+    size_t dataSize = 255 - NPAR;
+	unsigned int mapIndex;
+	// size_t encodedLength = 0;
 	size_t dataLength = dataSize;
 
-	size_t encodedSize = (inputFileLength / dataSize) * blockSize;
-	size_t lastBlockSize = inputFileLength % dataSize + paritySize;
+	size_t encodedSize = (inputFileLength / dataSize) * (dataSize + NPAR);
+    unsigned char* output = new unsigned char [256];
+    unsigned char* encoded = new unsigned char [encodedSize];
+	size_t lastBlockSize = inputFileLength % dataSize + NPAR;
+
 	if (inputFileLength % dataSize != 0)
 		encodedSize += lastBlockSize;
 
-	size_t blocks = std::ceil(encodedSize / (double)blockSize);
-	encoded.clear();
-	encoded.resize(encodedSize);
-	unsigned blocksCounter = 0;
+	size_t blocks = std::ceil(encodedSize / (double) (dataSize + NPAR));
 
-	while (encodedLength < inputFileLength)
+    size_t encodedLength;
+    unsigned int blocksCounter;
+
+	for (encodedLength = 0, blocksCounter = 0; encodedLength < inputFileLength; encodedLength += dataSize, ++blocksCounter)
 	{
 		// For last block
 		if (dataLength + encodedLength > inputFileLength)
@@ -114,7 +108,7 @@ int main(int argc, char** argv)
     	encode_data(buffer + encodedLength, dataLength, output);
 	
     	// Save encoded data to vector + interleave it
-		for (unsigned i = 0; i < dataLength + paritySize; ++i)
+		for (unsigned i = 0; i < dataLength + NPAR; ++i)
 		{
 			mapIndex = blocksCounter + i * blocks;
 			// Need to adjust index if last codeword is smaller
@@ -122,18 +116,13 @@ int main(int argc, char** argv)
 				mapIndex -= i - lastBlockSize;;
 			encoded[mapIndex] = output[i];
 		}
-    
-		encodedLength += dataSize;
-		// Move to next codeword
-		++blocksCounter;
-		// Without interleaving
-		//encoded.insert(encoded.end(), output, output + dataLength + paritySize);
 	}
     // TODO ^^^^^^^
 
-	// TODO 
-    outputFile.write((char*) &encoded.front(), encoded.size());
+    outputFile.write((char*) encoded, encodedSize);
 
+    delete [] encoded;
+    delete [] output;
     delete [] buffer;
 
     outputFile.close();
