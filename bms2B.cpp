@@ -75,7 +75,7 @@ int main(int argc, char** argv)
     unsigned char* buffer = new unsigned char [inputFileLength];
 
     // read data as a block
-    inputFile.read(reinterpret_cast<char*>(buffer), inputFileLength);
+    inputFile.read((char*) buffer, inputFileLength);
 
     // initialize error checking and correcting
 	initialize_ecc();
@@ -86,8 +86,6 @@ int main(int argc, char** argv)
 	const size_t dataSize = 255 - paritySize;
 	//const size_t dataSize = 145;
 	const size_t blockSize = dataSize + paritySize;
-
-	unsigned char *input = nullptr;
 
 	// deinterleave
 	std::vector<unsigned char> deInterleaved;
@@ -109,7 +107,7 @@ int main(int argc, char** argv)
 			if (i > lastBlockSize)
 				map -= i - lastBlockSize;
 
-			deInterleaved[i + j * blockSize] = input[map];
+			deInterleaved[i + j * blockSize] = buffer[map];
 		}
 	}
 
@@ -134,10 +132,12 @@ int main(int argc, char** argv)
 		if (check_syndrome() != 0)
 			correct_errors_erasures(deInterleaved.data() + decoded, blockLength, 0, nullptr);
 
-		outputFile.write(reinterpret_cast<char*> (deInterleaved.data() + decoded), writeSize);
+		outputFile.write((char*) (deInterleaved.data() + decoded), writeSize);
 		decoded += blockLength;
 	}
 	// TODO ^^^^^^
+
+	delete [] buffer;
 
     outputFile.close();
     inputFile.close();
