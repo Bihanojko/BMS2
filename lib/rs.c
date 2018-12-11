@@ -88,6 +88,7 @@ void
 build_codeword (unsigned char msg[], int nbytes, unsigned char dst[])
 {
   int i;
+	
   for (i = 0; i < nbytes; i++) dst[i] = msg[i];
 	
   for (i = 0; i < NPAR; i++) {
