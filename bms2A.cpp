@@ -75,7 +75,7 @@ int main(int argc, char** argv)
     unsigned char* buffer = new unsigned char [inputFileLength];
 
     // read data as a block
-    inputFile.read(reinterpret_cast<char*>(buffer), inputFileLength);
+    inputFile.read((char*) buffer, inputFileLength);
 
     // initialize error checking and correcting
     initialize_ecc();
@@ -87,7 +87,6 @@ int main(int argc, char** argv)
     //const size_t dataSize = 145;
     const size_t blockSize = dataSize + paritySize;
 
-    unsigned char *input = nullptr;
     unsigned char output[256];
     std::vector<unsigned char> encoded;
 
@@ -112,7 +111,7 @@ int main(int argc, char** argv)
 		if (dataLength + encodedLength > inputFileLength)
 			dataLength = inputFileLength - encodedLength;
 	
-    	encode_data(input + encodedLength, dataLength, output);
+    	encode_data(buffer + encodedLength, dataLength, output);
 	
     	// Save encoded data to vector + interleave it
 		for (unsigned i = 0; i < dataLength + paritySize; ++i)
@@ -133,7 +132,9 @@ int main(int argc, char** argv)
     // TODO ^^^^^^^
 
 	// TODO 
-    outputFile.write((const char *) &encoded.front(), encoded.size());
+    outputFile.write((char*) &encoded.front(), encoded.size());
+
+    delete [] buffer;
 
     outputFile.close();
     inputFile.close();
