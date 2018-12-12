@@ -46,10 +46,9 @@ size_t GetFileLength(std::ifstream& inputFile)
 // deinterleave input sequence given in buffer and return it in deinterleavedInput
 void DeinterleaveInput(unsigned char* buffer, std::vector<unsigned char>& deinterleavedInput)
 {
-	unsigned int blockCount = std::ceil(inputFileLength / (float) blockLength);
-	size_t lastBlockSize = inputFileLength % blockLength;
-	size_t dataLength = blockLength;
-	unsigned int index = 0;
+	unsigned int blockCount = std::ceil(inputFileLength / (double) blockLength);
+	unsigned int lastBlockSize = inputFileLength % blockLength;
+	unsigned int dataLength = blockLength;
 
 	for (unsigned int i = 0; i < blockCount; ++i)
 	{
@@ -57,14 +56,7 @@ void DeinterleaveInput(unsigned char* buffer, std::vector<unsigned char>& deinte
 			dataLength = lastBlockSize;
 	
 		for (unsigned int j = 0; j < dataLength; ++j)
-		{
-			index = i + j * blockCount;
-
-			if (j > lastBlockSize)
-				index -= j - lastBlockSize;
-
-			deinterleavedInput.push_back(buffer[index]);
-		}
+			deinterleavedInput.push_back(buffer[j <= lastBlockSize ? i + j * blockCount : i + j * blockCount - j + lastBlockSize]);
 	}
 }
 
