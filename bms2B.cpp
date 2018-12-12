@@ -49,6 +49,7 @@ void DeinterleaveInput(unsigned char* buffer, std::vector<unsigned char>& deinte
 	unsigned int blockCount = std::ceil(inputFileLength / (double) blockLength);
 	unsigned int lastBlockSize = inputFileLength % blockLength;
 	unsigned int dataLength = blockLength;
+	unsigned int index = 0;
 
 	for (unsigned int i = 0; i < blockCount; ++i)
 	{
@@ -56,7 +57,13 @@ void DeinterleaveInput(unsigned char* buffer, std::vector<unsigned char>& deinte
 			dataLength = lastBlockSize;
 	
 		for (unsigned int j = 0; j < dataLength; ++j)
-			deinterleavedInput.push_back(buffer[j <= lastBlockSize ? i + j * blockCount : i + j * blockCount - j + lastBlockSize]);
+		{
+			index = j <= lastBlockSize
+				? i + j * blockCount
+				: i + j * blockCount - j + lastBlockSize;
+
+			deinterleavedInput.push_back(buffer[index]);
+		}
 	}
 }
 
