@@ -42,6 +42,24 @@ size_t GetFileLength(std::ifstream& inputFile)
 }
 
 
+// TODO
+// interleave input sequence given in encodedInput and return it in interleavedInput
+void InterleaveInput(unsigned char* encodedInput, unsigned char* interleavedInput, unsigned int blocksCounter, unsigned int blockCount, unsigned int dataLength, size_t lastBlockSize)
+{
+	unsigned int index;
+
+    // Save encoded data to vector + interleave it
+    for (unsigned int i = 0; i < dataLength + NPAR; ++i)
+    {
+        index = i <= lastBlockSize
+            ? blocksCounter + i * blockCount
+            : blocksCounter + i * blockCount - i + lastBlockSize;
+
+        interleavedInput[index] = encodedInput[i];
+    }
+}
+
+
 // MAIN
 int main(int argc, char** argv)
 {
@@ -86,52 +104,41 @@ int main(int argc, char** argv)
     initialize_ecc();
 
     // TODO vvvvvvv
-    size_t dataSize = 255 - NPAR;
-	unsigned int mapIndex;
-	// size_t encodedLength = 0;
-	size_t dataLength = dataSize;
+	unsigned int dataLength = blockLength - NPAR;
 
-	size_t encodedSize = (inputFileLength / dataSize) * (dataSize + NPAR);
-    unsigned char* output = new unsigned char [256];
-    unsigned char* encoded = new unsigned char [encodedSize];
-	size_t lastBlockSize = inputFileLength % dataSize + NPAR;
+	size_t lastBlockSize = inputFileLength % (blockLength - NPAR) + NPAR;
+	size_t encodedSize = inputFileLength % (blockLength - NPAR)
+        ? (inputFileLength / (blockLength - NPAR)) * blockLength + lastBlockSize
+        : (inputFileLength / (blockLength - NPAR)) * blockLength;
 
-	if (inputFileLength % dataSize != 0)
-		encodedSize += lastBlockSize;
-
-	size_t blocks = std::ceil(encodedSize / (double) (dataSize + NPAR));
+    unsigned char* encodedInput = new unsigned char [blockLength + 1];
+	unsigned int blockCount = std::ceil(encodedSize / (double) blockLength);
+    unsigned char* interleavedInput = new unsigned char [encodedSize];
 
     size_t encodedLength;
     unsigned int blocksCounter;
+    // TODO ^^^^^^^
 
-	for (encodedLength = 0, blocksCounter = 0; encodedLength < inputFileLength; encodedLength += dataSize, ++blocksCounter)
+	for (encodedLength = 0, blocksCounter = 0; encodedLength < inputFileLength; encodedLength += blockLength - NPAR, ++blocksCounter)
 	{
 		// set different size for the last block
+		if (dataLength > inputFileLength - encodedLength)
 			dataLength = inputFileLength - encodedLength;
 	
 		// encode input sequence
-    	encode_data(buffer + encodedLength, dataLength, output);
-	
-        // TODO
-    	// interleave the input sequence TODO returning result in deinterleavedInput variable
-    	// Save encoded data to vector + interleave it
-		for (unsigned i = 0; i < dataLength + NPAR; ++i)
-		{
+    	encode_data(buffer + encodedLength, dataLength, encodedInput);
 
-			// Need to adjust index if last codeword is smaller
-			if (i > lastBlockSize)
-				mapIndex -= i - lastBlockSize;;
-			encoded[mapIndex] = output[i];
-		}
+        // TODO vyjmout interleave az pred output
+    	// interleave the input sequence given in encodedInput returning result in interleavedInput variable
+        InterleaveInput(encodedInput, interleavedInput, blocksCounter, blockCount, dataLength, lastBlockSize);
 	}
-    // TODO ^^^^^^^
 
     // output the encoded sequence to file
-    outputFile.write((char*) encoded, encodedSize);
+    outputFile.write((char*) interleavedInput, encodedSize);
 
  	// free allocated memory
-    delete [] encoded;
-    delete [] output;
+    delete [] interleavedInput;
+    delete [] encodedInput;
     delete [] buffer;
 
     outputFile.close();
