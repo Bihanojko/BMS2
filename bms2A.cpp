@@ -15,6 +15,11 @@
 
 #include "rscode-1.3/ecc.h"
 
+// length of the block of data that is processed
+unsigned int blockLength = 255;
+// length of the input file
+size_t inputFileLength = 0;
+
 
 // create and open output file
 std::ofstream CreateOutputFile(std::string filename)
@@ -69,7 +74,7 @@ int main(int argc, char** argv)
     }
 
     // determine input file length
-    size_t inputFileLength = GetFileLength(inputFile);
+    inputFileLength = GetFileLength(inputFile);
 
     // allocate memory
     unsigned char* buffer = new unsigned char [inputFileLength];
@@ -101,16 +106,18 @@ int main(int argc, char** argv)
 
 	for (encodedLength = 0, blocksCounter = 0; encodedLength < inputFileLength; encodedLength += dataSize, ++blocksCounter)
 	{
-		// For last block
-		if (dataLength + encodedLength > inputFileLength)
+		// set different size for the last block
 			dataLength = inputFileLength - encodedLength;
 	
+		// encode input sequence
     	encode_data(buffer + encodedLength, dataLength, output);
 	
+        // TODO
+    	// interleave the input sequence TODO returning result in deinterleavedInput variable
     	// Save encoded data to vector + interleave it
 		for (unsigned i = 0; i < dataLength + NPAR; ++i)
 		{
-			mapIndex = blocksCounter + i * blocks;
+
 			// Need to adjust index if last codeword is smaller
 			if (i > lastBlockSize)
 				mapIndex -= i - lastBlockSize;;
@@ -119,8 +126,10 @@ int main(int argc, char** argv)
 	}
     // TODO ^^^^^^^
 
+    // output the encoded sequence to file
     outputFile.write((char*) encoded, encodedSize);
 
+ 	// free allocated memory
     delete [] encoded;
     delete [] output;
     delete [] buffer;

@@ -15,7 +15,10 @@
 
 #include "rscode-1.3/ecc.h"
 
-unsigned int BLOCK_LENGTH = 255;
+// length of the block of data that is processed
+unsigned int blockLength = 255;
+// length of the input file
+size_t inputFileLength = 0;
 
 
 // create and open output file
@@ -40,29 +43,50 @@ size_t GetFileLength(std::ifstream& inputFile)
 
 
 // TODO
-void DeinterleaveInput(unsigned char* buffer, std::vector<unsigned char>& deinterleavedInput, size_t inputFileLength)
+// deinterleave input sequence given in buffer and return it in deinterleavedInput
+void DeinterleaveInput(unsigned char* buffer, std::vector<unsigned char>& deinterleavedInput)
 {
-	size_t blocks = std::ceil(inputFileLength / (float) BLOCK_LENGTH);
-	size_t lastBlockSize = inputFileLength % BLOCK_LENGTH;
-	size_t dataLength = BLOCK_LENGTH - NPAR;
+	unsigned int blockCount = std::ceil(inputFileLength / (float) blockLength);
+	size_t lastBlockSize = inputFileLength % blockLength;
+	size_t dataLength = blockLength;
+	unsigned int index = 0;
 
-	// deinterleavedInput.resize(inputFileLength);
-
-	for (unsigned int i = 0; i < blocks; ++i)
+	for (unsigned int i = 0; i < blockCount; ++i)
 	{
-		if (i == blocks - 1)
-			dataLength = lastBlockSize - NPAR;
+		if (i + 1 == blockCount)
+			dataLength = lastBlockSize;
 	
-		for (unsigned int j = 0; j < BLOCK_LENGTH; ++j)
+		for (unsigned int j = 0; j < dataLength; ++j)
 		{
-			int map = i + j * blocks;
+			index = i + j * blockCount;
 
 			if (j > lastBlockSize)
-				map -= j - lastBlockSize;
+				index -= j - lastBlockSize;
 
-			deinterleavedInput.append();
-			// deinterleavedInput[j + i * BLOCK_LENGTH] = buffer[map];
+			deinterleavedInput.push_back(buffer[index]);
 		}
+	}
+}
+
+
+// decode the input sequence in deinterleavedInput and write the output to outputFile
+void DecodeInput(std::vector<unsigned char>& deinterleavedInput, std::ofstream& outputFile)
+{
+	for (unsigned int i = 0; i < inputFileLength; i += blockLength)
+	{
+		// set different size for the last block
+		if (blockLength >= inputFileLength - i)
+			blockLength = inputFileLength - i;
+
+		// decode input sequence
+		decode_data(deinterleavedInput.data() + i, blockLength);
+		
+		// check if any errors occurred and if so, try to correct them
+		if (check_syndrome())
+			correct_errors_erasures(deinterleavedInput.data() + i, blockLength, 0, nullptr);
+
+		// output the decoded and corrected sequence to file
+		outputFile.write((char*) (deinterleavedInput.data() + i), blockLength - NPAR);
 	}
 }
 
@@ -99,7 +123,7 @@ int main(int argc, char** argv)
     }
 
     // determine input file length
-    size_t inputFileLength = GetFileLength(inputFile);
+    inputFileLength = GetFileLength(inputFile);
 
     // allocate memory
     unsigned char* buffer = new unsigned char [inputFileLength];
@@ -114,27 +138,12 @@ int main(int argc, char** argv)
 	std::vector<unsigned char> deinterleavedInput;
 
 	// deinterleave the input sequence returning result in deinterleavedInput variable
-	DeinterleaveInput(buffer, deinterleavedInput, inputFileLength);
+	DeinterleaveInput(buffer, deinterleavedInput);
 
-	// TODO vvvvvv
-	// decode input
-	for (size_t decoded = 0; decoded < inputFileLength; decoded += BLOCK_LENGTH)
-	{
-		// If it is last block, adjust size
-		if (BLOCK_LENGTH + decoded >= inputFileLength)
-			BLOCK_LENGTH = inputFileLength - decoded;
+	// decode the deinterleved input sequence
+	DecodeInput(deinterleavedInput, outputFile);
 
-		// Decode date
-		decode_data(deinterleavedInput.data() + decoded, BLOCK_LENGTH);
-		
-		// Corrector errors
-		if (check_syndrome() != 0)
-			correct_errors_erasures(deinterleavedInput.data() + decoded, BLOCK_LENGTH, 0, nullptr);
-
-		outputFile.write((char*) (deinterleavedInput.data() + decoded), BLOCK_LENGTH - NPAR);
-	}
-	// TODO ^^^^^^
-
+	// free allocated memory
 	delete [] buffer;
 
     outputFile.close();
