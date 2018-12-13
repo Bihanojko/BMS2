@@ -20,6 +20,11 @@ unsigned int blockLength = 255;
 // length of the input file
 size_t inputFileLength = 0;
 
+unsigned int chunkSize = blockLength - NPAR;
+size_t lastBlockSize;
+size_t encodedSize;
+unsigned int blockCount;
+
 
 // create and open output file
 std::ofstream CreateOutputFile(std::string filename)
@@ -44,12 +49,12 @@ size_t GetFileLength(std::ifstream& inputFile)
 
 // TODO
 // interleave input sequence given in encodedInput and return it in interleavedInput
-void InterleaveInput(unsigned char* encodedInput, unsigned char* interleavedInput, unsigned int blocksCounter, unsigned int blockCount, unsigned int dataLength, size_t lastBlockSize)
+void InterleaveInput(unsigned char* encodedInput, unsigned char* interleavedInput, unsigned int blocksCounter, unsigned int blockCount, unsigned int chunkSize, size_t lastBlockSize)
 {
 	unsigned int index;
 
     // Save encoded data to vector + interleave it
-    for (unsigned int i = 0; i < dataLength + NPAR; ++i)
+    for (unsigned int i = 0; i < chunkSize + NPAR; ++i)
     {
         index = i <= lastBlockSize
             ? blocksCounter + i * blockCount
@@ -57,6 +62,31 @@ void InterleaveInput(unsigned char* encodedInput, unsigned char* interleavedInpu
 
         interleavedInput[index] = encodedInput[i];
     }
+}
+
+
+// TODO
+// encode and interleave the input sequence in buffer and return it in interleavedInput 
+void EncodeInput(unsigned char* buffer, unsigned char* interleavedInput)
+{
+    unsigned char* encodedOutput = new unsigned char [blockLength + 1];
+
+	for (unsigned int inputOffset = 0, outputOffset = 0, blocksCounter = 0; inputOffset < inputFileLength; inputOffset += chunkSize, outputOffset += blockLength, ++blocksCounter)
+	{
+		// set different size for the last block
+		if (chunkSize > inputFileLength - inputOffset)
+			chunkSize = inputFileLength - inputOffset;
+	
+		// encode input sequence
+    	encode_data(buffer + inputOffset, chunkSize, encodedOutput);
+    	// encode_data(buffer + inputOffset, chunkSize, encodedOutput + outputOffset);
+
+        // // TODO vyjmout interleave az pred output
+    	// // interleave the input sequence given in encodedOutput returning result in interleavedInput variable
+        InterleaveInput(encodedOutput, interleavedInput, blocksCounter, blockCount, chunkSize, lastBlockSize);
+	}
+
+    delete [] encodedOutput;
 }
 
 
@@ -104,41 +134,22 @@ int main(int argc, char** argv)
     initialize_ecc();
 
     // TODO vvvvvvv
-	unsigned int dataLength = blockLength - NPAR;
-
-	size_t lastBlockSize = inputFileLength % (blockLength - NPAR) + NPAR;
-	size_t encodedSize = inputFileLength % (blockLength - NPAR)
+	lastBlockSize = inputFileLength % (blockLength - NPAR) + NPAR;
+	encodedSize = inputFileLength % (blockLength - NPAR)
         ? (inputFileLength / (blockLength - NPAR)) * blockLength + lastBlockSize
         : (inputFileLength / (blockLength - NPAR)) * blockLength;
 
-    unsigned char* encodedInput = new unsigned char [blockLength + 1];
-	unsigned int blockCount = std::ceil(encodedSize / (double) blockLength);
+	blockCount = std::ceil(encodedSize / (double) blockLength);
     unsigned char* interleavedInput = new unsigned char [encodedSize];
 
-    size_t encodedLength;
-    unsigned int blocksCounter;
-    // TODO ^^^^^^^
-
-	for (encodedLength = 0, blocksCounter = 0; encodedLength < inputFileLength; encodedLength += blockLength - NPAR, ++blocksCounter)
-	{
-		// set different size for the last block
-		if (dataLength > inputFileLength - encodedLength)
-			dataLength = inputFileLength - encodedLength;
-	
-		// encode input sequence
-    	encode_data(buffer + encodedLength, dataLength, encodedInput);
-
-        // TODO vyjmout interleave az pred output
-    	// interleave the input sequence given in encodedInput returning result in interleavedInput variable
-        InterleaveInput(encodedInput, interleavedInput, blocksCounter, blockCount, dataLength, lastBlockSize);
-	}
+	// encode the input sequence
+    EncodeInput(buffer, interleavedInput);
 
     // output the encoded sequence to file
     outputFile.write((char*) interleavedInput, encodedSize);
 
  	// free allocated memory
     delete [] interleavedInput;
-    delete [] encodedInput;
     delete [] buffer;
 
     outputFile.close();
