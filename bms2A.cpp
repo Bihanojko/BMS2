@@ -59,12 +59,12 @@ void SetFileParameters()
     lastBlockSize = inputFileLength % (blockLength - NPAR) + NPAR;
 
     // set length of the output sequence (encoded and interlaved)
-	outputSize = inputFileLength % (blockLength - NPAR)
+    outputSize = inputFileLength % (blockLength - NPAR)
         ? (inputFileLength / (blockLength - NPAR)) * blockLength + lastBlockSize
         : (inputFileLength / (blockLength - NPAR)) * blockLength;
 
     // set the number of blocks that will be processed and outputted
-	blockCount = std::ceil(outputSize / (double) blockLength);
+    blockCount = std::ceil(outputSize / (double) blockLength);
 }
 
 
@@ -75,20 +75,20 @@ void EncodeInput(unsigned char* buffer, std::vector<unsigned char>& encodedInput
     unsigned int inputCharCount = chunkSize;
     unsigned int encodedCharCount = blockLength;
 
-	for (unsigned int inputOffset = 0; inputOffset < inputFileLength; inputOffset += chunkSize)
-	{
+    for (unsigned int inputOffset = 0; inputOffset < inputFileLength; inputOffset += chunkSize)
+    {
         // set different size for the last block
-		if (inputCharCount > inputFileLength - inputOffset)
+        if (inputCharCount > inputFileLength - inputOffset)
         {
             inputCharCount = inputFileLength - inputOffset;
             encodedCharCount = lastBlockSize;
         }
-	
-		// encode input sequence
-    	encode_data(buffer + inputOffset, inputCharCount, encodedChunk);
+    
+        // encode input sequence
+        encode_data(buffer + inputOffset, inputCharCount, encodedChunk);
 
         encodedInput.insert(encodedInput.end(), encodedChunk, encodedChunk + encodedCharCount);
-	}
+    }
 
     delete [] encodedChunk;
 }
@@ -98,7 +98,7 @@ void EncodeInput(unsigned char* buffer, std::vector<unsigned char>& encodedInput
 void InterleaveBlock(std::vector<unsigned char>& encodedInput, unsigned char* interleavedInput, unsigned int blocksCounter, unsigned int encodedCharCount)
 {
     unsigned int blockOffset = blocksCounter * blockLength;
-	unsigned int index;
+    unsigned int index;
 
     // assign encoded data cells to diferent indeces in interleavedInput  
     for (unsigned int i = 0; i < encodedCharCount + NPAR; ++i)
@@ -117,15 +117,15 @@ void InterleaveInput(std::vector<unsigned char>& encodedInput, unsigned char* in
 {
     unsigned int encodedCharCount = chunkSize;
 
- 	for (unsigned int inputOffset = 0, blocksCounter = 0; inputOffset < inputFileLength; inputOffset += encodedCharCount, ++blocksCounter)
-	{
-		// set different size for the last block
-		if (encodedCharCount > inputFileLength - inputOffset)
-			encodedCharCount = inputFileLength - inputOffset;
-	
-    	// interleave the encoded current block
+     for (unsigned int inputOffset = 0, blocksCounter = 0; inputOffset < inputFileLength; inputOffset += encodedCharCount, ++blocksCounter)
+    {
+        // set different size for the last block
+        if (encodedCharCount > inputFileLength - inputOffset)
+            encodedCharCount = inputFileLength - inputOffset;
+    
+        // interleave the encoded current block
         InterleaveBlock(encodedInput, interleavedInput, blocksCounter, encodedCharCount);
-	}
+    }
 }
 
 
@@ -178,19 +178,19 @@ int main(int argc, char** argv)
     // store encoded input before interleaving
     std::vector<unsigned char> encodedInput;
 
-	// encode the input sequence returning result in encodedInput variable
+    // encode the input sequence returning result in encodedInput variable
     EncodeInput(buffer, encodedInput);
 
     // store encoded and interleaved input
     unsigned char* interleavedInput = new unsigned char [outputSize];
 
-	// interleave the encoded sequence returning result in interleavedInput variable
+    // interleave the encoded sequence returning result in interleavedInput variable
     InterleaveInput(encodedInput, interleavedInput);
 
     // output the encoded sequence to file
     outputFile.write((char*) interleavedInput, outputSize);
 
- 	// free allocated memory
+     // free allocated memory
     delete [] interleavedInput;
     delete [] buffer;
 

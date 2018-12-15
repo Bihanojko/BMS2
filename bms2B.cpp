@@ -52,45 +52,45 @@ size_t GetFileLength(std::ifstream& inputFile)
 // deinterleave input sequence given in buffer and return it in deinterleavedInput
 void DeinterleaveInput(unsigned char* buffer, std::vector<unsigned char>& deinterleavedInput)
 {
-	unsigned int dataLength = blockLength;
-	unsigned int index = 0;
+    unsigned int dataLength = blockLength;
+    unsigned int index = 0;
 
-	for (unsigned int i = 0; i < blockCount; ++i)
-	{
-		if (i + 1 == blockCount)
-			dataLength = lastBlockSize;
-	
-		for (unsigned int j = 0; j < dataLength; ++j)
-		{
-			index = j <= lastBlockSize
-				? i + j * blockCount
-				: i + j * blockCount - j + lastBlockSize;
+    for (unsigned int i = 0; i < blockCount; ++i)
+    {
+        if (i + 1 == blockCount)
+            dataLength = lastBlockSize;
+    
+        for (unsigned int j = 0; j < dataLength; ++j)
+        {
+            index = j <= lastBlockSize
+                ? i + j * blockCount
+                : i + j * blockCount - j + lastBlockSize;
 
-			deinterleavedInput.push_back(buffer[index]);
-		}
-	}
+            deinterleavedInput.push_back(buffer[index]);
+        }
+    }
 }
 
 
 // decode the input sequence in deinterleavedInput and write the output to outputFile
 void DecodeInput(std::vector<unsigned char>& deinterleavedInput, std::ofstream& outputFile)
 {
-	for (unsigned int i = 0; i < inputFileLength; i += blockLength)
-	{
-		// set different size for the last block
-		if (blockLength >= inputFileLength - i)
-			blockLength = inputFileLength - i;
+    for (unsigned int i = 0; i < inputFileLength; i += blockLength)
+    {
+        // set different size for the last block
+        if (blockLength >= inputFileLength - i)
+            blockLength = inputFileLength - i;
 
-		// decode input sequence
-		decode_data(deinterleavedInput.data() + i, blockLength);
-		
-		// check if any errors occurred and if so, try to correct them
-		if (check_syndrome())
-			correct_errors_erasures(deinterleavedInput.data() + i, blockLength, 0, nullptr);
+        // decode input sequence
+        decode_data(deinterleavedInput.data() + i, blockLength);
+        
+        // check if any errors occurred and if so, try to correct them
+        if (check_syndrome())
+            correct_errors_erasures(deinterleavedInput.data() + i, blockLength, 0, nullptr);
 
-		// output the decoded and corrected sequence to file
-		outputFile.write((char*) (deinterleavedInput.data() + i), blockLength - NPAR);
-	}
+        // output the decoded and corrected sequence to file
+        outputFile.write((char*) (deinterleavedInput.data() + i), blockLength - NPAR);
+    }
 }
 
 
@@ -100,8 +100,8 @@ int main(int argc, char** argv)
     // check argument count
     if (argc != 2)
     {
-		std::cerr <<  "Invalid argument count! Usage: ./bms2B filename" << std::endl;
-		return EXIT_FAILURE;
+        std::cerr <<  "Invalid argument count! Usage: ./bms2B filename" << std::endl;
+        return EXIT_FAILURE;
     }
 
     // open input file
@@ -112,7 +112,7 @@ int main(int argc, char** argv)
     // create and open output file
     std::ofstream outputFile = CreateOutputFile(filename);
 
-	// check if both files were opened successfully
+    // check if both files were opened successfully
     if (!inputFile.is_open() || !outputFile.is_open())
     {
         std::cerr <<  "Unable to open input or output file!" << std::endl;
@@ -128,8 +128,8 @@ int main(int argc, char** argv)
     // determine input file length
     inputFileLength = GetFileLength(inputFile);
 
-	blockCount = std::ceil(inputFileLength / (double) blockLength);
-	lastBlockSize = inputFileLength % blockLength;
+    blockCount = std::ceil(inputFileLength / (double) blockLength);
+    lastBlockSize = inputFileLength % blockLength;
 
     // allocate memory
     unsigned char* buffer = new unsigned char [inputFileLength];
@@ -138,19 +138,19 @@ int main(int argc, char** argv)
     inputFile.read((char*) buffer, inputFileLength);
 
     // initialize error checking and correcting
-	initialize_ecc();
+    initialize_ecc();
 
-	// to store the input sequence after deinterleaving
-	std::vector<unsigned char> deinterleavedInput;
+    // to store the input sequence after deinterleaving
+    std::vector<unsigned char> deinterleavedInput;
 
-	// deinterleave the input sequence returning result in deinterleavedInput variable
-	DeinterleaveInput(buffer, deinterleavedInput);
+    // deinterleave the input sequence returning result in deinterleavedInput variable
+    DeinterleaveInput(buffer, deinterleavedInput);
 
-	// decode the deinterleved input sequence
-	DecodeInput(deinterleavedInput, outputFile);
+    // decode the deinterleved input sequence
+    DecodeInput(deinterleavedInput, outputFile);
 
-	// free allocated memory
-	delete [] buffer;
+    // free allocated memory
+    delete [] buffer;
 
     outputFile.close();
     inputFile.close();
