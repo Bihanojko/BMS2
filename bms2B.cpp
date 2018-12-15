@@ -17,8 +17,15 @@
 
 // length of the block of data that is processed
 unsigned int blockLength = 255;
+
+// GLOBAL FILE PARAMETERS
 // length of the input file
 size_t inputFileLength = 0;
+// the length of the last processed block
+unsigned int lastBlockSize = 0;
+// the number of blocks that will be processed and outputted
+unsigned int blockCount = 0;
+
 
 
 // create and open output file
@@ -42,12 +49,9 @@ size_t GetFileLength(std::ifstream& inputFile)
 }
 
 
-// TODO
 // deinterleave input sequence given in buffer and return it in deinterleavedInput
 void DeinterleaveInput(unsigned char* buffer, std::vector<unsigned char>& deinterleavedInput)
 {
-	unsigned int blockCount = std::ceil(inputFileLength / (double) blockLength);
-	unsigned int lastBlockSize = inputFileLength % blockLength;
 	unsigned int dataLength = blockLength;
 	unsigned int index = 0;
 
@@ -123,6 +127,9 @@ int main(int argc, char** argv)
 
     // determine input file length
     inputFileLength = GetFileLength(inputFile);
+
+	blockCount = std::ceil(inputFileLength / (double) blockLength);
+	lastBlockSize = inputFileLength % blockLength;
 
     // allocate memory
     unsigned char* buffer = new unsigned char [inputFileLength];

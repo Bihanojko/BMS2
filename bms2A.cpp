@@ -15,15 +15,20 @@
 
 #include "rscode-1.3/ecc.h"
 
-// length of the block of data that is processed
-unsigned int blockLength = 255;
+// length of the block of data that is outputted
+const unsigned int blockLength = 255;
+// length of the input data that are being processed per each block
+const unsigned int chunkSize = blockLength - NPAR;
+
+// GLOBAL FILE PARAMETERS
 // length of the input file
 size_t inputFileLength = 0;
-
-unsigned int chunkSize = blockLength - NPAR;
-size_t lastBlockSize;
-size_t encodedSize;
-unsigned int blockCount;
+// length of the output sequence (encoded and interlaved)
+unsigned int outputSize = 0;
+// the length of the last processed block
+unsigned int lastBlockSize = 0;
+// the number of blocks that will be processed and outputted
+unsigned int blockCount = 0;
 
 
 // create and open output file
@@ -47,46 +52,80 @@ size_t GetFileLength(std::ifstream& inputFile)
 }
 
 
-// TODO
-// interleave input sequence given in encodedInput and return it in interleavedInput
-void InterleaveInput(unsigned char* encodedInput, unsigned char* interleavedInput, unsigned int blocksCounter, unsigned int blockCount, unsigned int chunkSize, size_t lastBlockSize)
+// set global parameters regarding the file being processed
+void SetFileParameters()
 {
+    // set the length of the last processed block
+    lastBlockSize = inputFileLength % (blockLength - NPAR) + NPAR;
+
+    // set length of the output sequence (encoded and interlaved)
+	outputSize = inputFileLength % (blockLength - NPAR)
+        ? (inputFileLength / (blockLength - NPAR)) * blockLength + lastBlockSize
+        : (inputFileLength / (blockLength - NPAR)) * blockLength;
+
+    // set the number of blocks that will be processed and outputted
+	blockCount = std::ceil(outputSize / (double) blockLength);
+}
+
+
+// encode the input sequence in buffer and return it in encodedInput 
+void EncodeInput(unsigned char* buffer, std::vector<unsigned char>& encodedInput)
+{
+    unsigned char* encodedChunk = new unsigned char [blockLength + 1];
+    unsigned int inputCharCount = chunkSize;
+    unsigned int encodedCharCount = blockLength;
+
+	for (unsigned int inputOffset = 0; inputOffset < inputFileLength; inputOffset += chunkSize)
+	{
+        // set different size for the last block
+		if (inputCharCount > inputFileLength - inputOffset)
+        {
+            inputCharCount = inputFileLength - inputOffset;
+            encodedCharCount = lastBlockSize;
+        }
+	
+		// encode input sequence
+    	encode_data(buffer + inputOffset, inputCharCount, encodedChunk);
+
+        encodedInput.insert(encodedInput.end(), encodedChunk, encodedChunk + encodedCharCount);
+	}
+
+    delete [] encodedChunk;
+}
+
+
+// interleave input block given in encodedInput and return it in interleavedInput
+void InterleaveBlock(std::vector<unsigned char>& encodedInput, unsigned char* interleavedInput, unsigned int blocksCounter, unsigned int encodedCharCount)
+{
+    unsigned int blockOffset = blocksCounter * blockLength;
 	unsigned int index;
 
-    // Save encoded data to vector + interleave it
-    for (unsigned int i = 0; i < chunkSize + NPAR; ++i)
+    // assign encoded data cells to diferent indeces in interleavedInput  
+    for (unsigned int i = 0; i < encodedCharCount + NPAR; ++i)
     {
         index = i <= lastBlockSize
             ? blocksCounter + i * blockCount
             : blocksCounter + i * blockCount - i + lastBlockSize;
 
-        interleavedInput[index] = encodedInput[i];
+        interleavedInput[index] = encodedInput.at(blockOffset + i);
     }
 }
 
 
-// TODO
-// encode and interleave the input sequence in buffer and return it in interleavedInput 
-void EncodeInput(unsigned char* buffer, unsigned char* interleavedInput)
+// interleave input sequence given in encodedInput and return it in interleavedInput
+void InterleaveInput(std::vector<unsigned char>& encodedInput, unsigned char* interleavedInput)
 {
-    unsigned char* encodedOutput = new unsigned char [blockLength + 1];
+    unsigned int encodedCharCount = chunkSize;
 
-	for (unsigned int inputOffset = 0, outputOffset = 0, blocksCounter = 0; inputOffset < inputFileLength; inputOffset += chunkSize, outputOffset += blockLength, ++blocksCounter)
+ 	for (unsigned int inputOffset = 0, blocksCounter = 0; inputOffset < inputFileLength; inputOffset += encodedCharCount, ++blocksCounter)
 	{
 		// set different size for the last block
-		if (chunkSize > inputFileLength - inputOffset)
-			chunkSize = inputFileLength - inputOffset;
+		if (encodedCharCount > inputFileLength - inputOffset)
+			encodedCharCount = inputFileLength - inputOffset;
 	
-		// encode input sequence
-    	encode_data(buffer + inputOffset, chunkSize, encodedOutput);
-    	// encode_data(buffer + inputOffset, chunkSize, encodedOutput + outputOffset);
-
-        // // TODO vyjmout interleave az pred output
-    	// // interleave the input sequence given in encodedOutput returning result in interleavedInput variable
-        InterleaveInput(encodedOutput, interleavedInput, blocksCounter, blockCount, chunkSize, lastBlockSize);
+    	// interleave the encoded current block
+        InterleaveBlock(encodedInput, interleavedInput, blocksCounter, encodedCharCount);
 	}
-
-    delete [] encodedOutput;
 }
 
 
@@ -133,20 +172,23 @@ int main(int argc, char** argv)
     // initialize error checking and correcting
     initialize_ecc();
 
-    // TODO vvvvvvv
-	lastBlockSize = inputFileLength % (blockLength - NPAR) + NPAR;
-	encodedSize = inputFileLength % (blockLength - NPAR)
-        ? (inputFileLength / (blockLength - NPAR)) * blockLength + lastBlockSize
-        : (inputFileLength / (blockLength - NPAR)) * blockLength;
+    // set global file parameters
+    SetFileParameters();
 
-	blockCount = std::ceil(encodedSize / (double) blockLength);
-    unsigned char* interleavedInput = new unsigned char [encodedSize];
+    // store encoded input before interleaving
+    std::vector<unsigned char> encodedInput;
 
-	// encode the input sequence
-    EncodeInput(buffer, interleavedInput);
+	// encode the input sequence returning result in encodedInput variable
+    EncodeInput(buffer, encodedInput);
+
+    // store encoded and interleaved input
+    unsigned char* interleavedInput = new unsigned char [outputSize];
+
+	// interleave the encoded sequence returning result in interleavedInput variable
+    InterleaveInput(encodedInput, interleavedInput);
 
     // output the encoded sequence to file
-    outputFile.write((char*) interleavedInput, encodedSize);
+    outputFile.write((char*) interleavedInput, outputSize);
 
  	// free allocated memory
     delete [] interleavedInput;
